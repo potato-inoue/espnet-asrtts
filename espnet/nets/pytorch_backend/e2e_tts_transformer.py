@@ -565,7 +565,7 @@ class Transformer(TTSInterface, torch.nn.Module):
         gt_mel_fbank = np.transpose(ys[0].detach().cpu().numpy())
         ax1.imshow(mel_fbank, aspect='auto', cmap=plt.cm.jet)
         ax2.imshow(gt_mel_fbank, aspect='auto', cmap=plt.cm.jet)
-        fig.savefig('images_asr2tts_transformer/asr2tts.%d.%d.png' % (0,name), orientation='landscape')
+        #fig.savefig('images_asr2tts_transformer/asr2tts.%d.%d.png' % (0,name), orientation='landscape')
 
         # modifiy mod part of groundtruth
         if self.reduction_factor > 1:

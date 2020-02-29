@@ -361,6 +361,8 @@ def train(args):
         dtype = getattr(torch, args.train_dtype)
     else:
         dtype = torch.float32
+    logging.info(device)
+    logging.info(dtype)
     model = model.to(device=device, dtype=dtype)
 
     # Setup an optimizer

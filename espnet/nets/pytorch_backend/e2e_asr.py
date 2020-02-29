@@ -139,7 +139,7 @@ class E2E(ASRInterface, torch.nn.Module):
         self.outdir = args.outdir
         self.space = args.sym_space
         self.blank = args.sym_blank
-        self.oracle_length = args.oracle_length
+        # self.oracle_length = args.oracle_length
         self.reporter = Reporter()
 
         # below means the last number becomes eos/sos ID
@@ -303,7 +303,7 @@ class E2E(ASRInterface, torch.nn.Module):
                 lpz = None
             #if self.recog_args.sampling == 'multinomial':
                 #self.loss_att, best_hyps = self.dec.generate(hs_pad, torch.tensor(hlens), ys_pad, self.recog_args)
-            self.loss_att, best_hyps = self.dec.generate_forward(hs_pad, torch.tensor(hlens), ys_pad, self.recog_args, oracle_length=self.oracle_length)
+            self.loss_att, best_hyps = self.dec.generate_forward(hs_pad, torch.tensor(hlens), ys_pad, self.recog_args) #, oracle_length=self.oracle_length)
             #else:
             #    best_hyps, pred_scores = self.dec.generate_beam_batch(
             #        hs_pad, torch.tensor(hlens), lpz,

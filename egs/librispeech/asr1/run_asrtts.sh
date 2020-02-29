@@ -8,14 +8,15 @@
 
 # general configuration
 backend=pytorch
-stage=-1       # start from -1 if you need to start from data download
-stop_stage=100
-ngpu=4         # number of gpus ("0" uses cpu, otherwise use gpu)
+stage=6       # start from -1 if you need to start from data download
+stop_stage=6
+ngpu=1        # number of gpus ("0" uses cpu, otherwise use gpu)
 debugmode=1
 dumpdir=dump   # directory to dump full features
 N=0            # number of minibatches to be used (mainly for debugging). "0" uses all minibatches.
 verbose=0      # verbose option
 resume=        # Resume the training from snapshot
+seed=1
 
 # feature configuration
 do_delta=false
@@ -24,7 +25,7 @@ preprocess_config=conf/specaug.yaml
 train_config=conf/train.yaml # current default recipe requires 4 gpus.
                              # if you do not have 4 gpus, please reconfigure the `batch-bins` and `accum-grad` parameters in config.
 train_config=conf/train_blstm_6L_10heads.yaml
-tts_train_config=conf/train_pytorch_transformer+spkemb_red1.yaml
+tts_train_config=conf/train_pytorch_transformer+spkemb_red1_mod.yaml
 lm_config=conf/lm.yaml
 decode_config=conf/decode.yaml
 
@@ -47,7 +48,7 @@ use_lm_valbest_average=false # if true, the validation `lm_n_average`-best langu
 # Set this to somewhere where you want to put your data, or where
 # someone else has already put it.  You'll want to change this
 # if you're not on the CLSP grid.
-datadir=/export/a15/vpanayotov/data
+datadir=/abelab/DB4 #/export/a15/vpanayotov/data
 
 # base url for downloads.
 data_url=www.openslr.org/resources/12
@@ -97,7 +98,7 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
     fbankdir=fbank
     # Generate the fbank features; by default 80-dimensional fbanks with pitch on each frame
     for x in dev_clean test_clean dev_other test_other train_clean_100 train_clean_360 train_other_500; do
-        steps/make_fbank_pitch.sh --cmd "$train_cmd" --nj 32 --write_utt2num_frames true \
+        steps/make_fbank_pitch.sh --cmd "$train_cmd" --nj 1 --write_utt2num_frames true \
             data/${x} exp/make_fbank/${x} ${fbankdir}
         utils/fix_data_dir.sh data/${x}
     done
@@ -148,28 +149,31 @@ fi
 
 echo "ASRTTS JSON prep"
 if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
-    nj=4000
+    nj=20
     echo "stage 3: x-vector extraction"
-    if [ ! -d sid ]; then ln -s ../../libritts/tts1/sid .; fi
+    if [ ! -L sid ]; then ln -s ../../libritts/tts1/sid .; fi
     # Make MFCCs and compute the energy-based VAD for each dataset
     mfccdir=mfcc
     vaddir=mfcc
     nnet_dir=exp/xvector_nnet_1a
-    for name in train_clean_100 train_clean_360 train_other_500 train_960 dev test_clean test_other; do
-        if [ ! -s data/${name}_mfcc_16k/feats.scp ]; then
-        utils/copy_data_dir.sh data/${name} data/${name}_mfcc_16k
-        utils/data/resample_data_dir.sh 16000 data/${name}_mfcc_16k
-        steps/make_mfcc.sh \
-            --write-utt2num-frames true \
-            --mfcc-config conf/mfcc.conf \
-            --nj ${nj} --cmd "$train_cmd" \
-            data/${name}_mfcc_16k exp/make_mfcc_16k ${mfccdir}
-        fi
-        utils/fix_data_dir.sh data/${name}_mfcc_16k
-        sid/compute_vad_decision.sh --nj ${nj} --cmd "$train_cmd" \
-            data/${name}_mfcc_16k exp/make_vad ${vaddir}
-        utils/fix_data_dir.sh data/${name}_mfcc_16k
-    done
+    #for name in train_clean_100 train_clean_360 train_other_500 train_960 dev test_clean test_other; do
+        #if [ ! -s data/${name}_mfcc_16k/feats.scp ]; then
+        #utils/copy_data_dir.sh data/${name} data/${name}_mfcc_16k
+        #utils/data/resample_data_dir.sh 16000 data/${name}_mfcc_16k
+        #steps/make_mfcc.sh \
+        #    --write-utt2num-frames true \
+        #    --mfcc-config conf/mfcc.conf \
+        #    --nj ${nj} --cmd "$train_cmd" \
+        #    data/${name}_mfcc_16k exp/make_mfcc_16k ${mfccdir}
+        #fi
+	#echo 2
+	#mkdir -p data/${name}_mfcc_16k/.backup
+        #utils/fix_data_dir.sh data/${name}_mfcc_16k
+        #echo 3
+	#sid/compute_vad_decision.sh --nj ${nj} --cmd "$train_cmd" \
+        #    data/${name}_mfcc_16k exp/make_vad ${vaddir}
+        #utils/fix_data_dir.sh data/${name}_mfcc_16k
+    #done
 
     # Check pretrained model existence
     nnet_dir=exp/xvector_nnet_1a
@@ -182,13 +186,13 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
     fi
     
     # Extract x-vector
-    for name in train_clean_100 train_clean_360 train_other_500 train_960 dev test_clean test_other; do
-        if [ ! -s ${nnet_dir}/xvectors_${name}/xvector.scp ]; then
-            sid/nnet3/xvector/extract_xvectors.sh --cmd "$train_cmd --mem 4G" --nj ${nj} \
-                ${nnet_dir} data/${name}_mfcc_16k \
-                ${nnet_dir}/xvectors_${name}
-        fi
-    done
+    #for name in train_clean_100 train_clean_360 train_other_500 train_960 dev test_clean test_other; do
+        #if [ ! -s ${nnet_dir}/xvectors_${name}/xvector.scp ]; then
+         #   sid/nnet3/xvector/extract_xvectors.sh --cmd "$train_cmd --mem 4G" --nj ${nj} \
+         #       ${nnet_dir} data/${name}_mfcc_16k \
+         #       ${nnet_dir}/xvectors_${name}
+        #fi
+    #done
 
     # Update json
     for name in train_clean_100 train_clean_360 train_other_500 train_960 dev test_clean test_other; do
@@ -212,33 +216,33 @@ lmexpname=train_rnnlm_${backend}_${lmtag}_${bpemode}${nbpe}
 lmexpdir=exp/${lmexpname}
 mkdir -p ${lmexpdir}
 
-if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
-    echo "stage 4: LM Preparation"
-    lmdatadir=data/local/lm_train_${bpemode}${nbpe}
-    mkdir -p ${lmdatadir}
-    # use external data
-    if [ ! -e data/local/lm_train/librispeech-lm-norm.txt.gz ]; then
-        wget http://www.openslr.org/resources/11/librispeech-lm-norm.txt.gz -P data/local/lm_train/
-    fi
-    cut -f 2- -d" " data/${train_set}/text | gzip -c > data/local/lm_train/${train_set}_text.gz
-    # combine external text and transcriptions and shuffle them with seed 777
-    zcat data/local/lm_train/librispeech-lm-norm.txt.gz data/local/lm_train/${train_set}_text.gz |\
-        spm_encode --model=${bpemodel}.model --output_format=piece > ${lmdatadir}/train.txt
-    cut -f 2- -d" " data/${train_dev}/text | spm_encode --model=${bpemodel}.model --output_format=piece \
-        > ${lmdatadir}/valid.txt
-    ${cuda_cmd} --gpu ${ngpu} ${lmexpdir}/train.log \
-        lm_train.py \
-        --config ${lm_config} \
-        --ngpu ${ngpu} \
-        --backend ${backend} \
-        --verbose 1 \
-        --outdir ${lmexpdir} \
-        --tensorboard-dir tensorboard/${lmexpname} \
-        --train-label ${lmdatadir}/train.txt \
-        --valid-label ${lmdatadir}/valid.txt \
-        --resume ${lm_resume} \
-        --dict ${dict}
-fi
+#if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
+#    echo "stage 4: LM Preparation"
+#    lmdatadir=data/local/lm_train_${bpemode}${nbpe}
+#    mkdir -p ${lmdatadir}
+#    # use external data
+#    if [ ! -e data/local/lm_train/librispeech-lm-norm.txt.gz ]; then
+#        wget http://www.openslr.org/resources/11/librispeech-lm-norm.txt.gz -P data/local/lm_train/
+#    fi
+#    cut -f 2- -d" " data/${train_set}/text | gzip -c > data/local/lm_train/${train_set}_text.gz
+#    # combine external text and transcriptions and shuffle them with seed 777
+#    zcat data/local/lm_train/librispeech-lm-norm.txt.gz data/local/lm_train/${train_set}_text.gz |\
+#        spm_encode --model=${bpemodel}.model --output_format=piece > ${lmdatadir}/train.txt
+#    cut -f 2- -d" " data/${train_dev}/text | spm_encode --model=${bpemodel}.model --output_format=piece \
+#        > ${lmdatadir}/valid.txt
+#    ${cuda_cmd} --gpu ${ngpu} ${lmexpdir}/train.log \
+#        lm_train.py \
+#        --config ${lm_config} \
+#        --ngpu ${ngpu} \
+#        --backend ${backend} \
+#        --verbose 1 \
+#        --outdir ${lmexpdir} \
+#        --tensorboard-dir tensorboard/${lmexpname} \
+#        --train-label ${lmdatadir}/train.txt \
+#        --valid-label ${lmdatadir}/valid.txt \
+#        --resume ${lm_resume} \
+#        --dict ${dict}
+#fi
 
 if [ -z ${tag} ]; then
     expname=${train_set}_${backend}_$(basename ${train_config%.*})
@@ -271,10 +275,11 @@ if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
         --verbose ${verbose} \
         --resume ${resume} \
         --train-json ${dumpdir}/train_clean_100/delta${do_delta}/data_${bpemode}${nbpe}.json \
-        --valid-json ${feat_dt_dir}/data_${bpemode}${nbpe}.json
+        --valid-json ${feat_dt_dir}/data_${bpemode}${nbpe}.json \
+	--ctc_type builtin
 fi
 
-tts_expdir=exp/${expname}_TTS_transformer
+tts_expdir=exp/${expname}_TTS_transformer.rev2
 mkdir -p ${tts_expdir}
 if [ ${stage} -le 6 ] && [ ${stop_stage} -ge 6 ]; then
     echo "stage 6;Text-to-speech model training"
